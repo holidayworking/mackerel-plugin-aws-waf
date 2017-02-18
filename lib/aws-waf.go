@@ -3,6 +3,7 @@ package mpawswaf
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"time"
 
@@ -11,11 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go/service/waf"
 	mp "github.com/mackerelio/go-mackerel-plugin"
 )
 
 var graphdef = map[string]mp.Graphs{
-	"waf.Requests": {
+	"waf.Requests.#": {
 		Label: "AWS WAF Requests",
 		Unit:  "integer",
 		Metrics: []mp.Metrics{
@@ -30,7 +32,9 @@ type WafPlugin struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
+	WebAclID        string
 	WebAcl          string
+	Rules           []string
 	CloudWatch      *cloudwatch.CloudWatch
 }
 
@@ -48,7 +52,29 @@ func (p *WafPlugin) prepare() error {
 		config = config.WithRegion(p.Region)
 	}
 
+	svc := waf.New(sess, config)
+	response, err := svc.GetWebACL(&waf.GetWebACLInput{
+		WebACLId: aws.String(p.WebAclID),
+	})
+	if err != nil {
+		return err
+	}
+	p.WebAcl = *response.WebACL.MetricName
+
+	rules := []string{"ALL", "Default_Action"}
+	for _, rule := range response.WebACL.Rules {
+		response, err := svc.GetRule(&waf.GetRuleInput{
+			RuleId: aws.String(*rule.RuleId),
+		})
+		if err != nil {
+			continue
+		}
+		rules = append(rules, *response.Rule.MetricName)
+	}
+	p.Rules = rules
+
 	p.CloudWatch = cloudwatch.New(sess, config)
+
 	return nil
 }
 
@@ -91,27 +117,25 @@ func (p WafPlugin) getLastPoint(dimensions []*cloudwatch.Dimension, metricName s
 func (p WafPlugin) FetchMetrics() (map[string]float64, error) {
 	stat := make(map[string]float64)
 
-	dimensions := []*cloudwatch.Dimension{
-		{
-			Name:  aws.String("Rule"),
-			Value: aws.String("ALL"),
-		},
-		{
-			Name:  aws.String("WebACL"),
-			Value: aws.String(p.WebAcl),
-		},
-	}
+	for _, rule := range p.Rules {
+		dimensions := []*cloudwatch.Dimension{
+			{
+				Name:  aws.String("Rule"),
+				Value: aws.String(rule),
+			},
+			{
+				Name:  aws.String("WebACL"),
+				Value: aws.String(p.WebAcl),
+			},
+		}
 
-	for _, met := range [...]string{
-		"AllowedRequests",
-		"BlockedRequests",
-		"CountedRequests",
-	} {
-		v, err := p.getLastPoint(dimensions, met)
-		if err == nil {
-			stat[met] = v
-		} else {
-			log.Printf("%s: %s", met, err)
+		for _, met := range [...]string{"AllowedRequests", "BlockedRequests", "CountedRequests"} {
+			v, err := p.getLastPoint(dimensions, met)
+			if err == nil {
+				stat[fmt.Sprintf("waf.Requests.%s.%s", rule, met)] = v
+			} else {
+				log.Printf("%s: %s", met, err)
+			}
 		}
 	}
 
@@ -126,7 +150,7 @@ func Do() {
 	optAccessKeyID := flag.String("access-key-id", "", "AWS Access Key ID")
 	optSecretAccessKey := flag.String("secret-access-key", "", "AWS Secret Access Key")
 	optRegion := flag.String("region", "", "AWS Region")
-	optWebAcl := flag.String("web-acl", "", "AWS Web ACL name")
+	optWebAclID := flag.String("web-acl-id", "", "AWS Web ACL ID")
 	optTempfile := flag.String("tempfile", "", "Temp file name")
 	flag.Parse()
 
@@ -141,7 +165,7 @@ func Do() {
 		waf.Region = *optRegion
 	}
 
-	waf.WebAcl = *optWebAcl
+	waf.WebAclID = *optWebAclID
 	waf.AccessKeyID = *optAccessKeyID
 	waf.SecretAccessKey = *optSecretAccessKey
 
