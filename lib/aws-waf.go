@@ -134,7 +134,7 @@ func (p WafPlugin) FetchMetrics() (map[string]float64, error) {
 			if err == nil {
 				stat[fmt.Sprintf("waf.Requests.%s.%s", rule, met)] = v
 			} else {
-				log.Printf("%s: %s", met, err)
+				log.Printf("%s.%s: %s", rule, met, err)
 			}
 		}
 	}
