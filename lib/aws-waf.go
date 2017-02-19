@@ -9,7 +9,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/aws/aws-sdk-go/service/waf"
@@ -30,7 +29,6 @@ var graphdef = map[string]mp.Graphs{
 
 // WafPlugin mackerel plugin for aws waf
 type WafPlugin struct {
-	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
 	WebACLID        string
@@ -49,9 +47,7 @@ func (p *WafPlugin) prepare() error {
 	if p.AccessKeyID != "" && p.SecretAccessKey != "" {
 		config = config.WithCredentials(credentials.NewStaticCredentials(p.AccessKeyID, p.SecretAccessKey, ""))
 	}
-	if p.Region != "" {
-		config = config.WithRegion(p.Region)
-	}
+	config = config.WithRegion("us-east-1")
 
 	svc := waf.New(sess, config)
 	response, err := svc.GetWebACL(&waf.GetWebACLInput{
@@ -153,21 +149,11 @@ func (p WafPlugin) GraphDefinition() map[string]mp.Graphs {
 func Do() {
 	optAccessKeyID := flag.String("access-key-id", "", "AWS Access Key ID")
 	optSecretAccessKey := flag.String("secret-access-key", "", "AWS Secret Access Key")
-	optRegion := flag.String("region", "", "AWS Region")
 	optWebACLID := flag.String("web-acl-id", "", "AWS Web ACL ID")
 	optTempfile := flag.String("tempfile", "", "Temp file name")
 	flag.Parse()
 
 	var waf WafPlugin
-
-	if *optRegion == "" {
-		ec2metadata := ec2metadata.New(session.New())
-		if ec2metadata.Available() {
-			waf.Region, _ = ec2metadata.Region()
-		}
-	} else {
-		waf.Region = *optRegion
-	}
 
 	waf.WebACLID = *optWebACLID
 	waf.AccessKeyID = *optAccessKeyID

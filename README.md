@@ -6,7 +6,7 @@ AWS WAF custom metrics plugin for mackerel.io agent.
 ## Synopsis
 
 ```shell
-mackerel-plugin-aws-waf -web-acl-id=<aws-waf-web-acl-id> [-region=<aws-region>] [-access-key-id=<id>] [-secret-access-key=<key>] [-tempfile=<tempfile>]
+mackerel-plugin-aws-waf -web-acl-id=<aws-waf-web-acl-id> [-access-key-id=<id>] [-secret-access-key=<key>] [-tempfile=<tempfile>]
 ```
 
 ## AWS IAM Policy
