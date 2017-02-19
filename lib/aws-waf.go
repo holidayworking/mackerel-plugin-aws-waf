@@ -32,8 +32,8 @@ type WafPlugin struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
-	WebAclID        string
-	WebAcl          string
+	WebACLID        string
+	WebACL          string
 	Rules           []string
 	CloudWatch      *cloudwatch.CloudWatch
 }
@@ -54,12 +54,12 @@ func (p *WafPlugin) prepare() error {
 
 	svc := waf.New(sess, config)
 	response, err := svc.GetWebACL(&waf.GetWebACLInput{
-		WebACLId: aws.String(p.WebAclID),
+		WebACLId: aws.String(p.WebACLID),
 	})
 	if err != nil {
 		return err
 	}
-	p.WebAcl = *response.WebACL.MetricName
+	p.WebACL = *response.WebACL.MetricName
 
 	rules := []string{"ALL", "Default_Action"}
 	for _, rule := range response.WebACL.Rules {
@@ -125,7 +125,7 @@ func (p WafPlugin) FetchMetrics() (map[string]float64, error) {
 			},
 			{
 				Name:  aws.String("WebACL"),
-				Value: aws.String(p.WebAcl),
+				Value: aws.String(p.WebACL),
 			},
 		}
 
@@ -150,7 +150,7 @@ func Do() {
 	optAccessKeyID := flag.String("access-key-id", "", "AWS Access Key ID")
 	optSecretAccessKey := flag.String("secret-access-key", "", "AWS Secret Access Key")
 	optRegion := flag.String("region", "", "AWS Region")
-	optWebAclID := flag.String("web-acl-id", "", "AWS Web ACL ID")
+	optWebACLID := flag.String("web-acl-id", "", "AWS Web ACL ID")
 	optTempfile := flag.String("tempfile", "", "Temp file name")
 	flag.Parse()
 
@@ -165,7 +165,7 @@ func Do() {
 		waf.Region = *optRegion
 	}
 
-	waf.WebAclID = *optWebAclID
+	waf.WebACLID = *optWebACLID
 	waf.AccessKeyID = *optAccessKeyID
 	waf.SecretAccessKey = *optSecretAccessKey
 
