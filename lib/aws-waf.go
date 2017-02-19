@@ -28,6 +28,7 @@ var graphdef = map[string]mp.Graphs{
 	},
 }
 
+// WafPlugin mackerel plugin for aws waf
 type WafPlugin struct {
 	Region          string
 	AccessKeyID     string
@@ -114,6 +115,7 @@ func (p WafPlugin) getLastPoint(dimensions []*cloudwatch.Dimension, metricName s
 	return latestVal, nil
 }
 
+// FetchMetrics interface for mackerelplugin
 func (p WafPlugin) FetchMetrics() (map[string]float64, error) {
 	stat := make(map[string]float64)
 
@@ -142,10 +144,12 @@ func (p WafPlugin) FetchMetrics() (map[string]float64, error) {
 	return stat, nil
 }
 
+// GraphDefinition interface for mackerelplugin
 func (p WafPlugin) GraphDefinition() map[string]mp.Graphs {
 	return graphdef
 }
 
+// Do the plugin
 func Do() {
 	optAccessKeyID := flag.String("access-key-id", "", "AWS Access Key ID")
 	optSecretAccessKey := flag.String("secret-access-key", "", "AWS Secret Access Key")
